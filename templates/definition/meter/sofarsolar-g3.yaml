@@ -33,6 +33,16 @@ params:
     type: int
     default: 1
     advanced: true
+  - name: storageunits
+    description:
+      de: Mehrere Speichereinheiten
+      en: Multiple storage units
+    help:
+      de: Komma-getrennte Liste von Speichereinheiten (z.B. "1,2") für Multi-Battery-Setups. Aggregiert Leistung (Summe) und SOC (Durchschnitt) über alle angegebenen Einheiten.
+      en: Comma-separated list of storage units (e.g. "1,2") for multi-battery setups. Aggregates power (sum) and SOC (average) across all specified units.
+    type: string
+    advanced: true
+    usages: ["battery"]
   - name: capacity
     advanced: true
   - name: maxacpower
@@ -177,6 +187,66 @@ render: |
   maxacpower: {{ .maxacpower }}
   {{- end }}
   {{- if eq .usage "battery" }}
+  {{- if .storageunits }}
+  power:
+    source: calc
+    add:
+    {{- $units := splitList "," .storageunits }}
+    {{- range $units }}
+    {{- $unit := . | trim }}
+      - source: modbus
+        {{- include "modbus" $ | indent 6 }}
+        register:
+          {{- if eq $unit "1" }}
+          address: 0x0606 # Power_Bat1
+          {{- else if eq $unit "2" }}
+          address: 0x060D # Power_Bat2
+          {{- else if eq $unit "3" }}
+          address: 0x0614 # Power_Bat3
+          {{- else if eq $unit "4" }}
+          address: 0x061B # Power_Bat4
+          {{- else if eq $unit "5" }}
+          address: 0x0622 # Power_Bat5
+          {{- else if eq $unit "6" }}
+          address: 0x0629 # Power_Bat6
+          {{- else if eq $unit "7" }}
+          address: 0x0630 # Power_Bat7
+          {{- else if eq $unit "8" }}
+          address: 0x0637 # Power_Bat8
+          {{- end }}
+          type: holding
+          decode: int16
+        scale: -10
+    {{- end }}
+  soc:
+    source: calc
+    min:
+    {{- range $units }}
+    {{- $unit := . | trim }}
+      - source: modbus
+        {{- include "modbus" $ | indent 6 }}
+        register:
+          {{- if eq $unit "1" }}
+          address: 0x0608 # SOC_Bat1
+          {{- else if eq $unit "2" }}
+          address: 0x060F # SOC_Bat2
+          {{- else if eq $unit "3" }}
+          address: 0x0616 # SOC_Bat3
+          {{- else if eq $unit "4" }}
+          address: 0x061D # SOC_Bat4
+          {{- else if eq $unit "5" }}
+          address: 0x0624 # SOC_Bat5
+          {{- else if eq $unit "6" }}
+          address: 0x062B # SOC_Bat6
+          {{- else if eq $unit "7" }}
+          address: 0x0632 # SOC_Bat7
+          {{- else if eq $unit "8" }}
+          address: 0x0639 # SOC_Bat8
+          {{- end }}
+          type: holding
+          decode: uint16
+    {{- end }}
+  {{- else }}
   power:
     source: modbus
     {{- include "modbus" . | indent 2 }}
@@ -224,6 +294,7 @@ render: |
       {{- end }}
       type: holding
       decode: uint16
+  {{- end }}
   batterymode:
     source: switch
     switch:
